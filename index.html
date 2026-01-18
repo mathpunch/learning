@@ -83,13 +83,6 @@
                 chargingStatus = battery.charging ? "Charging" : "Not Charging";
             } catch(e) {}
 
-            // Connection type
-            let connectionType = "Unknown";
-            if(navigator.connection || navigator.mozConnection || navigator.webkitConnection) {
-                const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-                connectionType = conn.effectiveType || conn.type || "Unknown";
-            }
-
             const ip = data.ip || data.query || "Unknown";
             let location = "Unknown";
             if(data.city) {
@@ -103,7 +96,6 @@
                 "Location": location,
                 "ISP": isp,
                 "Hostname": data.hostname || data.reverse || "None",
-                "Connection Type": connectionType,
                 "--- DEVICE HARDWARE ---": "",
                 "OS/Platform": navigator.platform,
                 "CPU Threads": navigator.hardwareConcurrency || "Unknown",
