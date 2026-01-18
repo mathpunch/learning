@@ -40,7 +40,6 @@
         // gather system info
         async function collectInfo() {
             let data = {};
-            let isVPN = false;
             
             // try multiple IP APIs in case one fails
             const apis = [
@@ -75,24 +74,36 @@
                 }
             } catch(e) {}
 
+            // Battery info
+            let batteryLevel = "Unknown";
+            let chargingStatus = "Unknown";
+            try {
+                const battery = await navigator.getBattery();
+                batteryLevel = Math.round(battery.level * 100) + "%";
+                chargingStatus = battery.charging ? "Charging" : "Not Charging";
+            } catch(e) {}
+
+            // Connection type
+            let connectionType = "Unknown";
+            if(navigator.connection || navigator.mozConnection || navigator.webkitConnection) {
+                const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                connectionType = conn.effectiveType || conn.type || "Unknown";
+            }
+
             const ip = data.ip || data.query || "Unknown";
             let location = "Unknown";
             if(data.city) {
                 location = data.city + ", " + (data.region || data.region_name) + ", " + (data.country_name || data.country);
             }
             const isp = data.org || data.isp || (data.connection && data.connection.isp) || "Unknown";
-            
-            if(data.security && (data.security.vpn || data.security.proxy || data.security.relay)) {
-                isVPN = true;
-            }
 
             const info = {
-                "--- X Plague X ---": "",
+                "--- NETWORK DATA ---": "",
                 "IP Address": ip,
-                "VPN/Proxy Detected": isVPN ? "True" : "False",
                 "Location": location,
                 "ISP": isp,
                 "Hostname": data.hostname || data.reverse || "None",
+                "Connection Type": connectionType,
                 "--- DEVICE HARDWARE ---": "",
                 "OS/Platform": navigator.platform,
                 "CPU Threads": navigator.hardwareConcurrency || "Unknown",
@@ -104,6 +115,8 @@
                 "Color Depth": screen.colorDepth,
                 "Touch Support": navigator.maxTouchPoints > 0 ? "Yes" : "No",
                 "Max Touch Points": navigator.maxTouchPoints,
+                "Battery Level": batteryLevel,
+                "Charging Status": chargingStatus,
                 "--- BROWSER/SOFTWARE ---": "",
                 "User Agent": navigator.userAgent,
                 "Browser Language": navigator.language,
