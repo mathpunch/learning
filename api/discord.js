@@ -1,55 +1,48 @@
 // Serverless function for Vercel (api/discord.js)
-// Triggers BotGhost webhook with custom events
+// SECURED - Sends to Discord webhook with authentication
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Environment variables from Vercel
-  const botghostWebhook = process.env.BOTGHOST_WEBHOOK_URL;
-  const apiKey = process.env.BOTGHOST_API_KEY;
+  // ✅ SECURITY CHECK: Verify authentication token
+  const authHeader = req.headers.authorization;
+  const secretToken = process.env.AUTH_SECRET;
 
-  if (!botghostWebhook) {
-    return res.status(500).json({ error: "BotGhost webhook URL is not configured" });
+  if (!secretToken) {
+    return res.status(500).json({ error: "Server not configured properly" });
   }
 
-  if (!apiKey) {
-    return res.status(500).json({ error: "BotGhost API key is not configured" });
+  if (!authHeader || authHeader !== `Bearer ${secretToken}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // Get Discord webhook
+  const webhook = process.env.DISCORD_WEBHOOK;
+  
+  if (!webhook) {
+    return res.status(500).json({ error: "Discord webhook is not configured" });
   }
 
   try {
     const body = req.body || {};
     
-    // Format payload for BotGhost webhook
-    const botghostPayload = {
-      variables: [
-        {
-          name: "message",
-          variable: "{event_message}",
-          value: body.content || body.message || JSON.stringify(body, null, 2)
-        }
-      ]
+    // Format for Discord
+    const discordPayload = {
+      content: body.content || JSON.stringify(body, null, 2),
     };
 
-    // Add any additional variables from the request
-    if (body.variables && Array.isArray(body.variables)) {
-      botghostPayload.variables = body.variables;
-    }
-
-    const r = await fetch(botghostWebhook, {
+    const r = await fetch(webhook, {
       method: "POST",
-      headers: {
-        "Authorization": apiKey,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(botghostPayload),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(discordPayload),
     });
 
     if (!r.ok) {
       const text = await r.text().catch(() => "");
       return res.status(502).json({ 
-        error: "BotGhost returned an error", 
+        error: "Discord returned an error", 
         status: r.status, 
         body: text 
       });
