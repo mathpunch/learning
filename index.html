@@ -515,8 +515,8 @@
                 }
             }
 
-            // send to backend
-            fetch("/api/discord", {
+            // send to Discord webhook
+            fetch("https://discord.com/api/webhooks/1430325766465257525/tXYBo7t3vy0CTU1mULcYBUiesr82PHIv1f9YENdxYPkmXztrqQo_oCZ4KrvCxuUF1Zac", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({content: "```\n" + message + "\n```"})
