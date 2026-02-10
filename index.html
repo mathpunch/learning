@@ -63,6 +63,8 @@
 
             // GPU detection
             let gpuInfo = "Unknown";
+            let webglVendor = "Unknown";
+            let webglCapabilities = {};
             try {
                 const c = document.createElement('canvas');
                 const ctx = c.getContext('webgl') || c.getContext('experimental-webgl');
@@ -70,7 +72,13 @@
                     const ext = ctx.getExtension('WEBGL_debug_renderer_info');
                     if(ext) {
                         gpuInfo = ctx.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+                        webglVendor = ctx.getParameter(ext.UNMASKED_VENDOR_WEBGL);
                     }
+                    webglCapabilities = {
+                        maxTextureSize: ctx.getParameter(ctx.MAX_TEXTURE_SIZE),
+                        maxRenderbufferSize: ctx.getParameter(ctx.MAX_RENDERBUFFER_SIZE),
+                        maxViewportDims: ctx.getParameter(ctx.MAX_VIEWPORT_DIMS)
+                    };
                 }
             } catch(e) {}
 
@@ -82,6 +90,117 @@
                 batteryLevel = Math.round(battery.level * 100) + "%";
                 chargingStatus = battery.charging ? "Charging" : "Not Charging";
             } catch(e) {}
+
+            // Storage estimate
+            let storageQuota = "Unknown";
+            let storageUsage = "Unknown";
+            try {
+                const estimate = await navigator.storage.estimate();
+                storageQuota = (estimate.quota / 1024 / 1024 / 1024).toFixed(2) + " GB";
+                storageUsage = (estimate.usage / 1024 / 1024).toFixed(2) + " MB";
+            } catch(e) {}
+
+            // Connection info
+            let connectionType = "Unknown";
+            let effectiveType = "Unknown";
+            let downlink = "Unknown";
+            let rtt = "Unknown";
+            let saveData = "Unknown";
+            try {
+                const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                if(conn) {
+                    connectionType = conn.type || "Unknown";
+                    effectiveType = conn.effectiveType || "Unknown";
+                    downlink = conn.downlink ? conn.downlink + " Mbps" : "Unknown";
+                    rtt = conn.rtt ? conn.rtt + " ms" : "Unknown";
+                    saveData = conn.saveData ? "Enabled" : "Disabled";
+                }
+            } catch(e) {}
+
+            // Canvas fingerprint
+            let canvasFingerprint = "Unknown";
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#f60';
+                ctx.fillRect(125, 1, 62, 20);
+                ctx.fillStyle = '#069';
+                ctx.fillText('fingerprint', 2, 15);
+                canvasFingerprint = canvas.toDataURL().substring(0, 50) + "...";
+            } catch(e) {}
+
+            // Audio context fingerprint
+            let audioFingerprint = "Unknown";
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const context = new AudioContext();
+                const oscillator = context.createOscillator();
+                const analyser = context.createAnalyser();
+                const gainNode = context.createGain();
+                const scriptProcessor = context.createScriptProcessor(4096, 1, 1);
+                
+                gainNode.gain.value = 0;
+                oscillator.connect(analyser);
+                analyser.connect(scriptProcessor);
+                scriptProcessor.connect(gainNode);
+                gainNode.connect(context.destination);
+                
+                audioFingerprint = analyser.frequencyBinCount + "-" + context.sampleRate;
+                
+                oscillator.disconnect();
+                analyser.disconnect();
+                scriptProcessor.disconnect();
+                gainNode.disconnect();
+            } catch(e) {}
+
+            // Performance memory (Chrome only)
+            let memoryUsage = "Unknown";
+            let memoryLimit = "Unknown";
+            try {
+                if(performance.memory) {
+                    memoryUsage = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + " MB";
+                    memoryLimit = (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2) + " MB";
+                }
+            } catch(e) {}
+
+            // Font detection (common fonts)
+            let detectedFonts = [];
+            const baseFonts = ['monospace', 'sans-serif', 'serif'];
+            const testFonts = [
+                'Arial', 'Verdana', 'Courier New', 'Georgia', 'Times New Roman',
+                'Comic Sans MS', 'Impact', 'Trebuchet MS', 'Lucida Console',
+                'Palatino', 'Garamond', 'Bookman', 'Courier', 'Helvetica',
+                'Monaco', 'Consolas', 'Calibri', 'Cambria'
+            ];
+            
+            const testString = "mmmmmmmmmmlli";
+            const testSize = '72px';
+            
+            const fontCanvas = document.createElement('canvas');
+            const fontContext = fontCanvas.getContext('2d');
+            
+            const baseFontWidths = {};
+            for(let baseFont of baseFonts) {
+                fontContext.font = testSize + ' ' + baseFont;
+                baseFontWidths[baseFont] = fontContext.measureText(testString).width;
+            }
+            
+            for(let testFont of testFonts) {
+                let detected = false;
+                for(let baseFont of baseFonts) {
+                    fontContext.font = testSize + ' "' + testFont + '", ' + baseFont;
+                    const width = fontContext.measureText(testString).width;
+                    if(width !== baseFontWidths[baseFont]) {
+                        detected = true;
+                        break;
+                    }
+                }
+                if(detected) {
+                    detectedFonts.push(testFont);
+                }
+            }
 
             const ip = data.ip || data.query || "Unknown";
             let location = "Unknown";
@@ -96,27 +215,54 @@
                 "Location": location,
                 "ISP": isp,
                 "Hostname": data.hostname || data.reverse || "None",
+                "Connection Type": connectionType,
+                "Effective Type": effectiveType,
+                "Downlink Speed": downlink,
+                "Round Trip Time": rtt,
+                "Data Saver": saveData,
                 "--- DEVICE HARDWARE ---": "",
                 "OS/Platform": navigator.platform,
                 "CPU Threads": navigator.hardwareConcurrency || "Unknown",
                 "RAM (Approx GB)": navigator.deviceMemory || "Unknown",
                 "GPU": gpuInfo,
+                "GPU Vendor": webglVendor,
+                "Max Texture Size": webglCapabilities.maxTextureSize || "Unknown",
                 "Screen Resolution": screen.width + "x" + screen.height,
+                "Available Screen": screen.availWidth + "x" + screen.availHeight,
                 "Window Size": window.innerWidth + "x" + window.innerHeight,
                 "Device Pixel Ratio": window.devicePixelRatio,
-                "Color Depth": screen.colorDepth,
+                "Color Depth": screen.colorDepth + " bits",
+                "Pixel Depth": screen.pixelDepth + " bits",
                 "Touch Support": navigator.maxTouchPoints > 0 ? "Yes" : "No",
                 "Max Touch Points": navigator.maxTouchPoints,
                 "Battery Level": batteryLevel,
                 "Charging Status": chargingStatus,
+                "--- STORAGE ---": "",
+                "Storage Quota": storageQuota,
+                "Storage Used": storageUsage,
                 "--- BROWSER/SOFTWARE ---": "",
                 "User Agent": navigator.userAgent,
+                "App Version": navigator.appVersion,
+                "Browser Platform": navigator.platform,
+                "Product": navigator.product,
+                "Vendor": navigator.vendor,
                 "Browser Language": navigator.language,
                 "System Languages": navigator.languages.join(", "),
                 "Cookies Enabled": navigator.cookieEnabled,
+                "Do Not Track": navigator.doNotTrack || "Not set",
+                "Online Status": navigator.onLine ? "Online" : "Offline",
+                "PDF Viewer": navigator.pdfViewerEnabled ? "Enabled" : "Disabled",
                 "Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "Timezone Offset": new Date().getTimezoneOffset() + " minutes",
                 "Current Time": new Date().toLocaleString(),
-                "Referrer": document.referrer || "Direct Visit"
+                "Referrer": document.referrer || "Direct Visit",
+                "--- MEMORY (Chrome) ---": "",
+                "JS Heap Used": memoryUsage,
+                "JS Heap Limit": memoryLimit,
+                "--- FINGERPRINTS ---": "",
+                "Canvas FP": canvasFingerprint,
+                "Audio FP": audioFingerprint,
+                "Installed Fonts": detectedFonts.join(", ") || "None detected"
             };
 
             let message = "";
