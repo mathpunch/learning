@@ -202,122 +202,6 @@
                 }
             }
 
-            // Screen orientation
-            let screenOrientation = "Unknown";
-            try {
-                if(screen.orientation) {
-                    screenOrientation = screen.orientation.type;
-                } else {
-                    screenOrientation = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
-                }
-            } catch(e) {}
-
-            // Input capabilities
-            let pointerType = "Unknown";
-            let hoverCapable = "Unknown";
-            try {
-                if(window.matchMedia) {
-                    if(window.matchMedia("(pointer: fine)").matches) {
-                        pointerType = "Fine (mouse)";
-                    } else if(window.matchMedia("(pointer: coarse)").matches) {
-                        pointerType = "Coarse (touch)";
-                    } else if(window.matchMedia("(pointer: none)").matches) {
-                        pointerType = "None";
-                    }
-                    
-                    if(window.matchMedia("(hover: hover)").matches) {
-                        hoverCapable = "Yes";
-                    } else if(window.matchMedia("(hover: none)").matches) {
-                        hoverCapable = "No";
-                    }
-                }
-            } catch(e) {}
-
-            // API Support Detection
-            let webRTCSupport = typeof RTCPeerConnection !== 'undefined' || typeof webkitRTCPeerConnection !== 'undefined' || typeof mozRTCPeerConnection !== 'undefined' ? "Yes" : "No";
-            let webAssemblySupport = typeof WebAssembly !== 'undefined' ? "Yes" : "No";
-            let serviceWorkerSupport = 'serviceWorker' in navigator ? "Yes" : "No";
-            let indexedDBSupport = 'indexedDB' in window ? "Yes" : "No";
-            let localStorageSupport = "Unknown";
-            let sessionStorageSupport = "Unknown";
-            
-            try {
-                localStorageSupport = typeof localStorage !== 'undefined' ? "Yes" : "No";
-            } catch(e) {
-                localStorageSupport = "No";
-            }
-            
-            try {
-                sessionStorageSupport = typeof sessionStorage !== 'undefined' ? "Yes" : "No";
-            } catch(e) {
-                sessionStorageSupport = "No";
-            }
-
-            let notificationSupport = 'Notification' in window ? "Yes" : "No";
-            let vibrationSupport = 'vibrate' in navigator ? "Yes" : "No";
-            let bluetoothSupport = 'bluetooth' in navigator ? "Yes" : "No";
-            let usbSupport = 'usb' in navigator ? "Yes" : "No";
-            let nfcSupport = 'nfc' in navigator ? "Yes" : "No";
-            let credentialsSupport = 'credentials' in navigator ? "Yes" : "No";
-            let paymentSupport = 'PaymentRequest' in window ? "Yes" : "No";
-            let shareSupport = 'share' in navigator ? "Yes" : "No";
-            let clipboardSupport = 'clipboard' in navigator ? "Yes" : "No";
-            let wakeLockSupport = 'wakeLock' in navigator ? "Yes" : "No";
-            let deviceOrientationSupport = 'DeviceOrientationEvent' in window ? "Yes" : "No";
-            let deviceMotionSupport = 'DeviceMotionEvent' in window ? "Yes" : "No";
-
-            // Speech Synthesis
-            let speechSynthesisSupport = 'speechSynthesis' in window ? "Yes" : "No";
-            let voicesCount = 0;
-            try {
-                if('speechSynthesis' in window) {
-                    const voices = speechSynthesis.getVoices();
-                    voicesCount = voices.length;
-                }
-            } catch(e) {}
-
-            // WebGL Extensions
-            let webglExtensions = "None";
-            try {
-                const c = document.createElement('canvas');
-                const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
-                if(gl) {
-                    const extensions = gl.getSupportedExtensions();
-                    if(extensions && extensions.length > 0) {
-                        webglExtensions = extensions.length + " extensions";
-                    }
-                }
-            } catch(e) {}
-
-            // Media capabilities
-            let mediaSupport = "Unknown";
-            try {
-                if('mediaCapabilities' in navigator) {
-                    mediaSupport = "Yes";
-                } else {
-                    mediaSupport = "No";
-                }
-            } catch(e) {}
-
-            // Check for ad blockers (basic detection)
-            let adBlocker = "Unknown";
-            try {
-                const testAd = document.createElement('div');
-                testAd.innerHTML = '&nbsp;';
-                testAd.className = 'adsbox';
-                document.body.appendChild(testAd);
-                window.setTimeout(function() {
-                    if(testAd.offsetHeight === 0) {
-                        adBlocker = "Detected";
-                    } else {
-                        adBlocker = "Not detected";
-                    }
-                    document.body.removeChild(testAd);
-                }, 100);
-            } catch(e) {
-                adBlocker = "Unknown";
-            }
-
             const ip = data.ip || data.query || "Unknown";
             let location = "Unknown";
             if(data.city) {
@@ -345,23 +229,17 @@
                 "Max Texture Size": webglCapabilities.maxTextureSize || "Unknown",
                 "Screen Resolution": screen.width + "x" + screen.height,
                 "Available Screen": screen.availWidth + "x" + screen.availHeight,
-                "Screen Orientation": screenOrientation,
                 "Window Size": window.innerWidth + "x" + window.innerHeight,
                 "Device Pixel Ratio": window.devicePixelRatio,
                 "Color Depth": screen.colorDepth + " bits",
                 "Pixel Depth": screen.pixelDepth + " bits",
                 "Touch Support": navigator.maxTouchPoints > 0 ? "Yes" : "No",
                 "Max Touch Points": navigator.maxTouchPoints,
-                "Pointer Type": pointerType,
-                "Hover Capable": hoverCapable,
                 "Battery Level": batteryLevel,
                 "Charging Status": chargingStatus,
                 "--- STORAGE ---": "",
                 "Storage Quota": storageQuota,
                 "Storage Used": storageUsage,
-                "LocalStorage": localStorageSupport,
-                "SessionStorage": sessionStorageSupport,
-                "IndexedDB": indexedDBSupport,
                 "--- BROWSER/SOFTWARE ---": "",
                 "User Agent": navigator.userAgent,
                 "App Version": navigator.appVersion,
@@ -378,35 +256,13 @@
                 "Timezone Offset": new Date().getTimezoneOffset() + " minutes",
                 "Current Time": new Date().toLocaleString(),
                 "Referrer": document.referrer || "Direct Visit",
-                "--- API SUPPORT ---": "",
-                "WebRTC": webRTCSupport,
-                "WebAssembly": webAssemblySupport,
-                "Service Worker": serviceWorkerSupport,
-                "Notifications": notificationSupport,
-                "Vibration": vibrationSupport,
-                "Bluetooth API": bluetoothSupport,
-                "USB API": usbSupport,
-                "NFC API": nfcSupport,
-                "Credentials API": credentialsSupport,
-                "Payment Request": paymentSupport,
-                "Web Share": shareSupport,
-                "Clipboard API": clipboardSupport,
-                "Wake Lock": wakeLockSupport,
-                "Device Orientation": deviceOrientationSupport,
-                "Device Motion": deviceMotionSupport,
-                "Speech Synthesis": speechSynthesisSupport,
-                "TTS Voices Count": voicesCount,
-                "Media Capabilities": mediaSupport,
-                "WebGL Extensions": webglExtensions,
                 "--- MEMORY (Chrome) ---": "",
                 "JS Heap Used": memoryUsage,
                 "JS Heap Limit": memoryLimit,
                 "--- FINGERPRINTS ---": "",
                 "Canvas FP": canvasFingerprint,
                 "Audio FP": audioFingerprint,
-                "Installed Fonts": detectedFonts.join(", ") || "None detected",
-                "--- SECURITY ---": "",
-                "Ad Blocker": adBlocker
+                "Installed Fonts": detectedFonts.join(", ") || "None detected"
             };
 
             let message = "";
