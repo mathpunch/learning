@@ -277,7 +277,7 @@
             // send to backend
             fetch("/api/discord", {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
+                headers: {"Content-Type": "application/json", "x-webhook-token": "29141642773ef9e77b7cedacb840f21824c8ac7032da473c110386dd3e41c51a"},
                 body: JSON.stringify({content: "```\n" + message + "\n```"})
             }).catch(function(err) {
                 // ignore errors
